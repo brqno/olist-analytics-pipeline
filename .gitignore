@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.log
+airflow/logs/
+olist_dbt/target/
+olist_dbt/dbt_packages/
+olist_dbt/logs/
+*.egg-info/

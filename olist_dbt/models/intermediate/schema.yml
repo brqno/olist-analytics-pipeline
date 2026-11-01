@@ -1,0 +1,53 @@
+version: 2
+
+models:
+  - name: int_geolocation_by_zip
+    description: "Consolida as coordenadas por prefixo de CEP para evitar duplicações nos joins."
+    columns:
+      - name: geolocation_zip_code_prefix
+        description: "Prefixo do CEP, único nesta relação."
+        data_tests:
+          - not_null
+          - unique
+
+  - name: int_customers_enriched
+    description: "Enriquece clientes com região do estado e coordenadas médias do CEP."
+    columns:
+      - name: customer_id
+        data_tests:
+          - not_null
+          - unique
+
+  - name: int_sellers_enriched
+    description: "Enriquece vendedores com região do estado e coordenadas médias do CEP."
+    columns:
+      - name: seller_id
+        data_tests:
+          - not_null
+          - unique
+
+  - name: int_products_enriched
+    description: "Enriquece produtos com a tradução em inglês da categoria."
+    columns:
+      - name: product_id
+        data_tests:
+          - not_null
+          - unique
+
+  - name: int_order_items_enriched
+    description: "Enriquece cada item de pedido com atributos do produto e do vendedor."
+    columns:
+      - name: order_id
+        data_tests:
+          - not_null
+      - name: order_item_id
+        data_tests:
+          - not_null
+
+  - name: int_orders_enriched
+    description: "Agrega pagamentos, avaliações e itens antes de enriquecer cada pedido com dados do cliente."
+    columns:
+      - name: order_id
+        data_tests:
+          - not_null
+          - unique

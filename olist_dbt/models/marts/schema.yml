@@ -1,0 +1,131 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: "Calendário comum para datas de compra, entrega, previsão e limite de envio."
+    columns:
+      - name: date_key
+        description: "Chave da data no formato YYYYMMDD."
+        data_tests:
+          - not_null
+          - unique
+      - name: date_day
+        data_tests:
+          - not_null
+          - unique
+
+  - name: dim_state_region
+    description: "Dimensão geográfica de estados e regiões, derivada da seed de regiões brasileiras."
+    columns:
+      - name: state_code
+        data_tests:
+          - not_null
+          - unique
+
+  - name: dim_customer
+    description: "Dimensão de clientes enriquecida com estado, região e coordenadas."
+    columns:
+      - name: customer_key
+        data_tests:
+          - not_null
+          - unique
+      - name: state_code
+        data_tests:
+          - relationships:
+              to: ref('dim_state_region')
+              field: state_code
+
+  - name: dim_seller
+    description: "Dimensão de vendedores enriquecida com estado, região e coordenadas."
+    columns:
+      - name: seller_key
+        data_tests:
+          - not_null
+          - unique
+      - name: state_code
+        data_tests:
+          - relationships:
+              to: ref('dim_state_region')
+              field: state_code
+
+  - name: dim_product
+    description: "Dimensão de produtos com categoria em português e inglês."
+    columns:
+      - name: product_key
+        data_tests:
+          - not_null
+          - unique
+
+  - name: fact_orders
+    description: "Fato com uma linha por pedido; pagamentos e itens já chegam agregados por pedido."
+    columns:
+      - name: order_id
+        data_tests:
+          - not_null
+          - unique
+      - name: customer_key
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_key
+      - name: order_date_key
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_key
+
+  - name: fact_order_items
+    description: "Fato com uma linha por item de pedido; preço e frete são medidas aditivas."
+    columns:
+      - name: order_item_key
+        data_tests:
+          - not_null
+          - unique
+      - name: order_id
+        data_tests:
+          - not_null
+      - name: product_key
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_product')
+              field: product_key
+      - name: seller_key
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_seller')
+              field: seller_key
+      - name: order_date_key
+        data_tests:
+          - relationships:
+              to: ref('dim_date')
+              field: date_key
+
+  - name: fact_order_payments
+    description: "Fato com uma linha por pagamento sequencial associado a um pedido."
+    columns:
+      - name: payment_key
+        data_tests:
+          - not_null
+          - unique
+      - name: order_id
+        data_tests:
+          - not_null
+      - name: customer_key
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_key
+      - name: order_date_key
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_key
+      - name: payment_value
+        data_tests:
+          - not_null

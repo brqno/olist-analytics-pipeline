@@ -1,0 +1,15 @@
+.git
+.venv
+venv
+**/__pycache__
+*.py[cod]
+.env
+.env.*
+!.env.example
+*.log
+airflow/logs
+airflow/plugins
+data/raw
+olist_dbt/logs
+olist_dbt/target
+olist_dbt/dbt_packages
