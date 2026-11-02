@@ -162,6 +162,179 @@ As marts incluem:
 
 As tabelas fato têm granularidades diferentes. Não some medidas entre elas sem considerar a granularidade, para evitar dupla contagem. `customer_unique_id` também pode se repetir na fonte: identifica a mesma pessoa em mais de um registro de cliente e, por isso, não é testado como único.
 
+## Perguntas de negócio respondidas pelas marts
+
+Depois de executar `dbt build`, conecte-se ao banco `olist_project` e rode as consultas abaixo. Elas usam o schema `olist_marts` e mostram como combinar fatos e dimensões para analisar vendas, pagamentos, clientes, produtos, vendedores, datas e regiões. Os resultados dependem dos dados carregados; interprete-os a partir da saída real, sem assumir valores fixos.
+
+### Pedidos: onde estão as vendas e os atrasos?
+
+`fact_orders` tem uma linha por pedido. Esta consulta compara estados pelo valor de pagamento registrado e pela pontualidade dos pedidos entregues. `delivery_days_variance` negativo indica entrega antes da previsão; positivo, atraso.
+
+```sql
+SELECT
+    r.region_name,
+    r.state_code,
+    r.state_name,
+    COUNT(*) AS delivered_orders,
+    ROUND(SUM(o.payment_total), 2) AS recorded_paid_total,
+    ROUND(AVG(o.payment_total), 2) AS avg_paid_per_order,
+    ROUND(
+        100.0 * COUNT(*) FILTER (
+            WHERE o.delivery_days_variance IS NOT NULL
+              AND o.delivery_days_variance <= 0
+        ) / NULLIF(
+            COUNT(*) FILTER (WHERE o.delivery_days_variance IS NOT NULL),
+            0
+        ),
+        2
+    ) AS on_time_delivery_pct
+FROM olist_marts.fact_orders AS o
+JOIN olist_marts.dim_customer AS c
+    ON c.customer_key = o.customer_key
+JOIN olist_marts.dim_state_region AS r
+    ON r.state_code = c.state_code
+WHERE o.order_status = 'delivered'
+GROUP BY r.region_name, r.state_code, r.state_name
+ORDER BY recorded_paid_total DESC;
+```
+
+### Itens e produtos: quais categorias geram mais vendas?
+
+`fact_order_items` tem uma linha por item. O valor de itens não inclui frete; as duas medidas são apresentadas separadamente. A consulta considera apenas pedidos entregues.
+
+```sql
+SELECT
+    COALESCE(p.product_category_name, 'Sem categoria') AS category,
+    COUNT(*) AS delivered_items,
+    COUNT(DISTINCT i.order_id) AS delivered_orders,
+    ROUND(SUM(i.price), 2) AS item_sales,
+    ROUND(SUM(i.freight_value), 2) AS freight_total
+FROM olist_marts.fact_order_items AS i
+JOIN olist_marts.dim_product AS p
+    ON p.product_key = i.product_key
+WHERE i.order_status = 'delivered'
+GROUP BY COALESCE(p.product_category_name, 'Sem categoria')
+ORDER BY item_sales DESC;
+```
+
+### Pagamentos: quais métodos e parcelamentos são mais usados?
+
+`fact_order_payments` tem uma linha por pagamento sequencial. Um pedido pode aparecer em mais de um método; por isso, pedidos distintos por método não devem ser somados para obter o total geral de pedidos.
+
+```sql
+SELECT
+    payment_type,
+    payment_installments,
+    COUNT(*) AS payment_records,
+    COUNT(DISTINCT order_id) AS orders_using_this_combination,
+    ROUND(SUM(payment_value), 2) AS payment_total,
+    ROUND(AVG(payment_value), 2) AS avg_payment_value
+FROM olist_marts.fact_order_payments
+GROUP BY payment_type, payment_installments
+ORDER BY payment_total DESC;
+```
+
+### Datas: pedidos feitos no fim de semana têm um valor médio diferente?
+
+`dim_date` permite comparar a atividade por tipo de dia sem recalcular atributos de calendário.
+
+```sql
+SELECT
+    CASE WHEN d.is_weekend THEN 'Fim de semana' ELSE 'Dia útil' END AS day_type,
+    COUNT(*) AS delivered_orders,
+    ROUND(SUM(o.payment_total), 2) AS recorded_paid_total,
+    ROUND(AVG(o.payment_total), 2) AS avg_paid_per_order
+FROM olist_marts.fact_orders AS o
+JOIN olist_marts.dim_date AS d
+    ON d.date_key = o.order_date_key
+WHERE o.order_status = 'delivered'
+GROUP BY d.is_weekend
+ORDER BY d.is_weekend;
+```
+
+### Clientes: quais estados têm mais recorrência de compra?
+
+O identificador `customer_unique_id` representa a pessoa e pode aparecer em mais de um registro de cliente. A consulta conta pessoas distintas por estado e divide os pedidos pelo número de pessoas com pedido registrado.
+
+```sql
+SELECT
+    c.region_name,
+    c.state_code,
+    c.state_name,
+    COUNT(DISTINCT c.customer_unique_id) AS distinct_buyers,
+    COUNT(DISTINCT o.order_id) AS orders,
+    ROUND(
+        COUNT(DISTINCT o.order_id)::numeric
+        / NULLIF(COUNT(DISTINCT c.customer_unique_id), 0),
+        2
+    ) AS orders_per_buyer
+FROM olist_marts.dim_customer AS c
+JOIN olist_marts.fact_orders AS o
+    ON o.customer_key = c.customer_key
+GROUP BY c.region_name, c.state_code, c.state_name
+ORDER BY orders_per_buyer DESC, orders DESC;
+```
+
+### Produtos: como está distribuído o sortimento do catálogo?
+
+Além das vendas por categoria, os atributos de `dim_product` ajudam a avaliar a cobertura do catálogo e informações úteis para logística.
+
+```sql
+SELECT
+    COALESCE(product_category_name, 'Sem categoria') AS category,
+    COUNT(*) AS products,
+    ROUND(AVG(product_weight_g), 2) AS avg_product_weight_g,
+    COUNT(*) FILTER (
+        WHERE product_weight_g IS NULL
+    ) AS products_without_weight
+FROM olist_marts.dim_product
+GROUP BY COALESCE(product_category_name, 'Sem categoria')
+ORDER BY products DESC;
+```
+
+### Vendedores: quais regiões concentram vendas dos vendedores?
+
+O valor abaixo é a soma dos preços dos itens vendidos por vendedores da região, sem frete. Um mesmo pedido pode envolver vendedores de mais de uma região, então os totais regionais não são parcelas exclusivas do total de pedidos.
+
+```sql
+SELECT
+    s.region_name,
+    s.state_code,
+    s.state_name,
+    COUNT(DISTINCT s.seller_key) AS sellers,
+    COUNT(DISTINCT i.order_id) AS orders_with_seller_items,
+    ROUND(SUM(i.price), 2) AS item_sales
+FROM olist_marts.dim_seller AS s
+JOIN olist_marts.fact_order_items AS i
+    ON i.seller_key = s.seller_key
+WHERE i.order_status = 'delivered'
+GROUP BY s.region_name, s.state_code, s.state_name
+ORDER BY item_sales DESC;
+```
+
+### Regiões: como se comparam em pedidos entregues?
+
+`dim_state_region` fornece a classificação de estados e regiões usada para agrupar os pedidos pela localização do cliente.
+
+```sql
+SELECT
+    r.region_name,
+    COUNT(DISTINCT r.state_code) AS states_in_region,
+    COUNT(DISTINCT o.order_id) AS delivered_orders,
+    COUNT(DISTINCT c.customer_unique_id) FILTER (
+        WHERE o.order_id IS NOT NULL
+    ) AS distinct_buyers,
+    ROUND(COALESCE(SUM(o.payment_total), 0), 2) AS recorded_paid_total
+FROM olist_marts.dim_state_region AS r
+LEFT JOIN olist_marts.dim_customer AS c
+    ON c.state_code = r.state_code
+LEFT JOIN olist_marts.fact_orders AS o
+    ON o.customer_key = c.customer_key
+   AND o.order_status = 'delivered'
+GROUP BY r.region_name
+ORDER BY recorded_paid_total DESC;
+```
+
 ## Logs e validação
 
 - A ingestão grava em `pipeline_ingestao.log` e no console.
