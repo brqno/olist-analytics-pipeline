@@ -199,7 +199,7 @@ JOIN olist_marts.dim_customer AS c
     ON c.customer_key = o.customer_key
 JOIN olist_marts.dim_state_region AS r
     ON r.state_code = c.state_code
-WHERE o.order_status = 'delivered'
+WHERE o.order_status = 'DELIVERED'
 GROUP BY r.region_name, r.state_code, r.state_name
 ORDER BY recorded_paid_total DESC;
 ```
@@ -218,7 +218,7 @@ SELECT
 FROM olist_marts.fact_order_items AS i
 JOIN olist_marts.dim_product AS p
     ON p.product_key = i.product_key
-WHERE i.order_status = 'delivered'
+WHERE i.order_status = 'DELIVERED'
 GROUP BY COALESCE(p.product_category_name, 'Sem categoria')
 ORDER BY item_sales DESC;
 ```
@@ -253,7 +253,7 @@ SELECT
 FROM olist_marts.fact_orders AS o
 JOIN olist_marts.dim_date AS d
     ON d.date_key = o.order_date_key
-WHERE o.order_status = 'delivered'
+WHERE o.order_status = 'DELIVERED'
 GROUP BY d.is_weekend
 ORDER BY d.is_weekend;
 ```
@@ -279,66 +279,6 @@ JOIN olist_marts.fact_orders AS o
     ON o.customer_key = c.customer_key
 GROUP BY c.region_name, c.state_code, c.state_name
 ORDER BY orders_per_buyer DESC, orders DESC;
-```
-
-### Produtos: como está distribuído o sortimento do catálogo?
-
-Além das vendas por categoria, os atributos de `dim_product` ajudam a avaliar a cobertura do catálogo e informações úteis para logística.
-
-```sql
-SELECT
-    COALESCE(product_category_name, 'Sem categoria') AS category,
-    COUNT(*) AS products,
-    ROUND(AVG(product_weight_g), 2) AS avg_product_weight_g,
-    COUNT(*) FILTER (
-        WHERE product_weight_g IS NULL
-    ) AS products_without_weight
-FROM olist_marts.dim_product
-GROUP BY COALESCE(product_category_name, 'Sem categoria')
-ORDER BY products DESC;
-```
-
-### Vendedores: quais regiões concentram vendas dos vendedores?
-
-O valor abaixo é a soma dos preços dos itens vendidos por vendedores da região, sem frete. Um mesmo pedido pode envolver vendedores de mais de uma região, então os totais regionais não são parcelas exclusivas do total de pedidos.
-
-```sql
-SELECT
-    s.region_name,
-    s.state_code,
-    s.state_name,
-    COUNT(DISTINCT s.seller_key) AS sellers,
-    COUNT(DISTINCT i.order_id) AS orders_with_seller_items,
-    ROUND(SUM(i.price), 2) AS item_sales
-FROM olist_marts.dim_seller AS s
-JOIN olist_marts.fact_order_items AS i
-    ON i.seller_key = s.seller_key
-WHERE i.order_status = 'delivered'
-GROUP BY s.region_name, s.state_code, s.state_name
-ORDER BY item_sales DESC;
-```
-
-### Regiões: como se comparam em pedidos entregues?
-
-`dim_state_region` fornece a classificação de estados e regiões usada para agrupar os pedidos pela localização do cliente.
-
-```sql
-SELECT
-    r.region_name,
-    COUNT(DISTINCT r.state_code) AS states_in_region,
-    COUNT(DISTINCT o.order_id) AS delivered_orders,
-    COUNT(DISTINCT c.customer_unique_id) FILTER (
-        WHERE o.order_id IS NOT NULL
-    ) AS distinct_buyers,
-    ROUND(COALESCE(SUM(o.payment_total), 0), 2) AS recorded_paid_total
-FROM olist_marts.dim_state_region AS r
-LEFT JOIN olist_marts.dim_customer AS c
-    ON c.state_code = r.state_code
-LEFT JOIN olist_marts.fact_orders AS o
-    ON o.customer_key = c.customer_key
-   AND o.order_status = 'delivered'
-GROUP BY r.region_name
-ORDER BY recorded_paid_total DESC;
 ```
 
 ## Próximos passos
