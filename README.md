@@ -4,6 +4,7 @@
 
 Pipeline de dados de e-commerce que carrega os CSVs públicos da Olist em PostgreSQL, transforma os dados com dbt e exporta as tabelas analíticas para CSV no Amazon S3. O projeto usa pandas e SQLAlchemy na ingestão e na exportação.
 
+Link do dataset oficial pelo Kaggle: https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce
 ## Arquitetura
 
 ```text
