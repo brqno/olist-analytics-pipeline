@@ -1,5 +1,7 @@
 # Pipeline analítico Olist
 
+<img width="1597" height="662" alt="pipeline_load_and_transformation - Grid - Airflow - Google Chrome 01_11_2026 20_51_58" src="https://github.com/user-attachments/assets/a11977bf-2b6d-48c2-909d-d0dd07bb9ebf" />
+
 Pipeline de dados de e-commerce que carrega os CSVs públicos da Olist em PostgreSQL, transforma os dados com dbt e exporta as tabelas analíticas para CSV no Amazon S3. O projeto usa pandas e SQLAlchemy na ingestão e na exportação.
 
 ## Arquitetura
@@ -159,6 +161,8 @@ As marts incluem:
 
 - Dimensões: `dim_customer`, `dim_date`, `dim_product`, `dim_seller` e `dim_state_region`.
 - Fatos: `fact_orders` (uma linha por pedido), `fact_order_items` (uma linha por item) e `fact_order_payments` (uma linha por pagamento sequencial).
+
+<img width="1920" height="819" alt="pipeline_load_and_transformation - Grid - Airflow - Google Chrome 01_11_2026 20_39_25" src="https://github.com/user-attachments/assets/938a1f81-7534-440d-9073-559a6d0933eb" />
 
 As tabelas fato têm granularidades diferentes. Não some medidas entre elas sem considerar a granularidade, para evitar dupla contagem. `customer_unique_id` também pode se repetir na fonte: identifica a mesma pessoa em mais de um registro de cliente e, por isso, não é testado como único.
 
