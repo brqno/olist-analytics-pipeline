@@ -339,6 +339,18 @@ GROUP BY r.region_name
 ORDER BY recorded_paid_total DESC;
 ```
 
+## Próximos passos
+
+Possíveis evoluções do projeto, priorizadas para fortalecer a confiabilidade e ampliar o uso analítico:
+
+1. **Ampliar os testes dbt:** adicionar testes de domínio (`accepted_values`), faixas válidas para valores e notas, unicidade de chaves compostas e testes singulares para regras de negócio, como consistência entre totais de itens, frete e pagamentos.
+2. **Documentar e acompanhar a qualidade dos dados:** completar descrições de modelos e colunas, registrar granularidade e definições das métricas e, quando houver uma fonte atualizada periodicamente, configurar testes de freshness para detectar atrasos na carga.
+3. **Exportar as marts também em Parquet:** avaliar Parquet com compressão para reduzir armazenamento e acelerar consultas analíticas no S3. Manter CSV enquanto houver consumidores que dependam dele e definir convenção de nomes, compatibilidade de schema e estratégia de particionamento conforme o volume e os padrões de consulta.
+4. **Adicionar validação automatizada em CI:** executar verificações de estilo/sintaxe e validações dbt em pull requests, usando um banco de teste e dados controlados para detectar regressões antes de integrar mudanças.
+5. **Melhorar observabilidade e recuperação:** acompanhar duração e resultado de cada etapa, configurar alertas para falhas e estabelecer uma política explícita de retries e tratamento de execuções repetidas.
+6. **Disponibilizar os indicadores para consumo:** criar um dashboard ou consultas salvas para acompanhar métricas como pedidos, valor pago, atrasos, avaliações e vendas por categoria, sempre documentando filtros e granularidade.
+7. **Avaliar cargas incrementais:** se o volume ou a frequência de atualização crescer, estudar processamento incremental e atualização das tabelas sem recarregar todos os dados. Para a fonte atual, manter a carga completa pode continuar sendo a opção mais simples.
+
 ## Logs e validação
 
 - A ingestão grava em `pipeline_ingestao.log` e no console.
