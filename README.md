@@ -166,6 +166,8 @@ As marts incluem:
 
 As tabelas fato têm granularidades diferentes. Não some medidas entre elas sem considerar a granularidade, para evitar dupla contagem. `customer_unique_id` também pode se repetir na fonte: identifica a mesma pessoa em mais de um registro de cliente e, por isso, não é testado como único.
 
+A escolha de salvar a Marts em CSV no S3 se dá principalmente pensando em um público focado em analistas de negócio, que precisariam consultar aquelas informações antes de tomar uma decisão.
+
 ## Perguntas de negócio respondidas pelas marts
 
 Depois de executar `dbt build`, conecte-se ao banco `olist_project` e rode as consultas abaixo. Elas usam o schema `olist_marts` e mostram como combinar fatos e dimensões para analisar vendas, pagamentos, clientes, produtos, vendedores, datas e regiões. Os resultados dependem dos dados carregados; interprete-os a partir da saída real, sem assumir valores fixos.
