@@ -128,6 +128,7 @@ dbt build --project-dir .\olist_dbt --profiles-dir .\olist_dbt
 
 `dbt build` executa seeds, modelos e testes respeitando as dependências. Para exportar as tabelas do schema `olist_marts`:
 
+Há tambem uma seed que se trata da região de cada estado afim de enriquecer os dados de geolocalização.
 ```powershell
 python .\send\marts_to_s3.py
 ```
