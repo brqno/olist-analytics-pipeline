@@ -85,6 +85,13 @@ def pipeline_load_and_transformation():
         )
 
     @task
+    def load_test_data():
+        run_command(
+        [sys.executable, "-m", "pytest", str(PROJECT_ROOT / "tests")],
+        PROJECT_ROOT,
+        )
+
+    @task
     def run_dbt_seed():
         run_dbt_command("seed")
 
@@ -108,6 +115,7 @@ def pipeline_load_and_transformation():
 
     (
         load_data()
+        >> load_test_data()
         >> run_dbt_seed()
         >> run_dbt()
         >> run_dbt_test()
