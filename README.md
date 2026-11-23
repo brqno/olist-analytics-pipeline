@@ -119,6 +119,21 @@ python .\load\data_load.py
 
 As tabelas `bronze.raw_*` são recriadas a cada carga (`if_exists="replace"`); faça backup antes de alterar esse comportamento em um banco compartilhado.
 
+### Testes automatizados com pytest
+
+Na raiz do projeto, execute os testes de cada camada separadamente ou a suíte completa:
+
+```powershell
+python -m pytest -q .\tests\test_data_load.py
+python -m pytest -q .\tests\test_data_mart.py
+python -m pytest -q .\tests
+```
+
+- `test_data_load.py` verifica a configuração da conexão e a idempotência da carga usando mocks.
+- `test_data_mart.py` valida a exportação das marts para CSV, incluindo conteúdo não vazio para cada modelo gold, rejeição de tabelas vazias e alinhamento dos modelos gold com os contratos de teste do dbt.
+
+Os testes de pytest simulam banco de dados e S3; não exigem conexão real com PostgreSQL nem credenciais AWS. Na DAG, `test_data_load` e `test_data_mart` são tasks separadas: ambas rodam após a carga e antes do seed e dos modelos dbt.
+
 Depois, compile/execute os modelos e os testes:
 
 ```powershell
@@ -150,10 +165,12 @@ docker compose -f .\airflow\docker-compose.yml up -d --remove-orphans
 Acesse `http://localhost:8081` (ou a porta definida em `AIRFLOW_WEBSERVER_PORT`). O usuário e a senha locais padrão são `airflow`/`airflow`; defina `_AIRFLOW_WWW_USER_USERNAME` e `_AIRFLOW_WWW_USER_PASSWORD` no `.env` para alterá-los. A DAG `pipeline_load_and_transformation` executa, em sequência:
 
 1. carga dos CSVs;
-2. seed do dbt;
-3. modelos dbt;
-4. testes dbt;
-5. exportação das marts para o S3.
+2. testes pytest da carga (`test_data_load`);
+3. testes pytest das marts (`test_data_mart`);
+4. seed do dbt;
+5. modelos dbt;
+6. testes dbt;
+7. exportação das marts para o S3.
 
 Cada etapa falha explicitamente se o processo chamado retornar erro. A DAG é criada pausada; revise a configuração e ative-a pela interface quando quiser permitir execuções agendadas. O Compose injeta as variáveis do `.env` nos serviços Airflow e monta o projeto em `/opt/airflow/project`. DAGs de exemplo do Airflow ficam desativadas.
 

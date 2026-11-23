@@ -7,7 +7,6 @@ import yaml
 
 from send import marts_to_s3
 
-
 def _configure_export(monkeypatch, table_names):
     monkeypatch.setattr(marts_to_s3, "load_dotenv", lambda _: None)
     monkeypatch.setenv("S3_BUCKET", "test-bucket")
