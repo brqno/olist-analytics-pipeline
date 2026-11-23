@@ -66,6 +66,11 @@ def export_marts_to_s3():
                 con=engine,
                 schema=marts_schema,
             )
+            if dataframe.empty:
+                raise RuntimeError(
+                    f"A tabela '{marts_schema}.{table_name}' está vazia; "
+                    "o arquivo não será enviado ao S3."
+                )
 
             csv_buffer = BytesIO()
             dataframe.to_csv(csv_buffer, index=False, encoding="utf-8")
